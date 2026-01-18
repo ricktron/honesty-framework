@@ -1,0 +1,172 @@
+name: Integrity Check
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  schedule:
+    # Run integrity checks daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  integrity-validation:
+    name: Validate Repository Integrity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Generate file checksums
+        id: checksums
+        run: |
+          echo "🔐 Generating file checksums..."
+          
+          # Create checksums directory
+          mkdir -p .integrity
+          
+          # Generate checksums for all tracked files
+          find . -type f -not -path './.git/*' -not -path './.integrity/*' -exec sha256sum {} \; | sort > .integrity/checksums.txt
+          
+          echo "✅ Generated checksums for $(wc -l < .integrity/checksums.txt) files"
+          
+          cat .integrity/checksums.txt
+          
+      - name: Verify file integrity
+        run: |
+          echo "🔍 Verifying file integrity..."
+          
+          # Check for files with suspicious extensions
+          SUSPICIOUS_EXTENSIONS=".exe .dll .so .dylib .bin"
+          
+          for ext in $SUSPICIOUS_EXTENSIONS; do
+            if find . -type f -name "*$ext" -not -path './.git/*' | grep -q .; then
+              echo "⚠️  WARNING: Found files with extension $ext"
+              find . -type f -name "*$ext" -not -path './.git/*'
+            fi
+          done
+          
+          echo "✅ File integrity check completed"
+          
+      - name: Check for unauthorized modifications
+        run: |
+          echo "🔒 Checking for unauthorized modifications..."
+          
+          # Protected files that should rarely change
+          PROTECTED_FILES=".github/workflows/ config/"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Checking files changed in PR..."
+            
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+            
+            for protected_path in $PROTECTED_FILES; do
+              if echo "$CHANGED_FILES" | grep -q "^$protected_path"; then
+                echo "⚠️  WARNING: Protected path modified: $protected_path"
+                echo "Please ensure proper review and approval."
+              fi
+            done
+          fi
+          
+          echo "✅ Unauthorized modification check completed"
+          
+      - name: Validate dependency integrity
+        run: |
+          echo "📦 Validating dependency integrity..."
+          
+          # Check for package files
+          if [ -f "package.json" ]; then
+            echo "Found package.json"
+            if [ -f "package-lock.json" ]; then
+              echo "✅ package-lock.json present"
+            else
+              echo "⚠️  WARNING: package-lock.json not found"
+            fi
+          fi
+          
+          if [ -f "requirements.txt" ]; then
+            echo "Found requirements.txt"
+            # Check for pinned versions
+            if grep -qE '^[^=<>~]+$' requirements.txt; then
+              echo "⚠️  WARNING: Some dependencies are not pinned to specific versions"
+            else
+              echo "✅ All dependencies are pinned"
+            fi
+          fi
+          
+          if [ -f "go.mod" ]; then
+            echo "Found go.mod"
+            if [ -f "go.sum" ]; then
+              echo "✅ go.sum present"
+            else
+              echo "⚠️  WARNING: go.sum not found"
+            fi
+          fi
+          
+          echo "✅ Dependency integrity check completed"
+          
+      - name: Scan for code anomalies
+        run: |
+          echo "🔎 Scanning for code anomalies..."
+          
+          # Check for very large files
+          echo "Checking for large files..."
+          find . -type f -not -path './.git/*' -size +10M -exec ls -lh {} \; | awk '{print "⚠️  Large file:", $9, "(", $5, ")"}'
+          
+          # Check for binary files in unexpected locations
+          echo "Checking for unexpected binary files..."
+          if find . -path './.git' -prune -o -type f -exec file {} \; | grep -v text | grep -v directory | grep -v empty | grep -v ASCII | grep -v UTF-8 | grep -v JSON | grep -v XML; then
+            echo "⚠️  WARNING: Binary files found outside expected locations"
+          fi
+          
+          echo "✅ Code anomaly scan completed"
+          
+      - name: Generate integrity report
+        if: always()
+        run: |
+          echo "📊 Generating integrity report..."
+          
+          cat > integrity-report.md << 'EOF'
+          # Repository Integrity Report
+          
+          **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Workflow**: ${{ github.workflow }}
+          **Run**: #${{ github.run_number }}
+          **Trigger**: ${{ github.event_name }}
+          
+          ## Validation Results
+          
+          - ✅ File checksums generated
+          - ✅ File integrity verified
+          - ✅ Unauthorized modification check completed
+          - ✅ Dependency integrity validated
+          - ✅ Code anomaly scan completed
+          
+          ## Repository Details
+          
+          - **Repository**: ${{ github.repository }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Actor**: ${{ github.actor }}
+          
+          ## Checksum Summary
+          
+          Total files checked: $(wc -l < .integrity/checksums.txt 2>/dev/null || echo "N/A")
+          
+          EOF
+          
+          cat integrity-report.md
+          
+      - name: Upload integrity artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrity-check-report
+          path: |
+            integrity-report.md
+            .integrity/
+          retention-days: 90

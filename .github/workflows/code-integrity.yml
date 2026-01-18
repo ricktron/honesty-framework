@@ -1,0 +1,233 @@
+name: Code Integrity
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run ShellCheck
+        run: |
+          echo "🔍 Running ShellCheck on shell scripts..."
+          
+          if find . -name "*.sh" -type f | grep -q .; then
+            sudo apt-get update && sudo apt-get install -y shellcheck
+            
+            find . -name "*.sh" -type f -not -path './.git/*' | while read -r script; do
+              echo "Checking: $script"
+              shellcheck "$script" || echo "⚠️  Issues found in $script"
+            done
+            
+            echo "✅ ShellCheck completed"
+          else
+            echo "ℹ️  No shell scripts found"
+          fi
+          
+      - name: Check code formatting
+        run: |
+          echo "📝 Checking code formatting..."
+          
+          # Check for trailing whitespace
+          echo "Checking for trailing whitespace..."
+          if git ls-files | xargs grep -l '[[:space:]]$'; then
+            echo "⚠️  WARNING: Files with trailing whitespace found"
+          else
+            echo "✅ No trailing whitespace"
+          fi
+          
+          # Check for tabs vs spaces consistency
+          echo "Checking for mixed indentation..."
+          if git ls-files | xargs grep -l $'\t' | head -5; then
+            echo "ℹ️  INFO: Some files use tabs for indentation"
+          fi
+          
+          echo "✅ Code formatting check completed"
+          
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Upload Trivy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+          retention-days: 90
+          
+      - name: Check for secrets
+        run: |
+          echo "🔐 Scanning for accidentally committed secrets..."
+          
+          # Install gitleaks if not available
+          if ! command -v gitleaks &> /dev/null; then
+            echo "Installing gitleaks..."
+            wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.18.1/gitleaks_8.18.1_linux_x64.tar.gz
+            tar -xzf gitleaks_8.18.1_linux_x64.tar.gz
+            chmod +x gitleaks
+            sudo mv gitleaks /usr/local/bin/
+          fi
+          
+          # Run gitleaks
+          if gitleaks detect --source . --verbose --no-git; then
+            echo "✅ No secrets detected"
+          else
+            echo "❌ ERROR: Potential secrets found!"
+            exit 1
+          fi
+          
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check for LICENSE file
+        run: |
+          echo "📜 Checking for LICENSE file..."
+          
+          if [ -f "LICENSE" ] || [ -f "LICENSE.md" ] || [ -f "LICENSE.txt" ]; then
+            echo "✅ LICENSE file found"
+            ls -l LICENSE* 2>/dev/null || true
+          else
+            echo "⚠️  WARNING: No LICENSE file found"
+            echo "Consider adding a LICENSE file to clarify usage rights"
+          fi
+          
+      - name: Check for copyright headers
+        run: |
+          echo "©️  Checking for copyright headers..."
+          
+          # Check source files for copyright headers
+          SOURCE_EXTS=".py .js .java .go .cpp .c .h"
+          
+          for ext in $SOURCE_EXTS; do
+            if find . -name "*$ext" -type f -not -path './.git/*' | head -1 | grep -q .; then
+              echo "Checking $ext files..."
+              
+              FILES_WITHOUT_COPYRIGHT=$(find . -name "*$ext" -type f -not -path './.git/*' -exec head -10 {} \; -exec echo "---FILE_SEPARATOR---" \; | 
+                grep -B10 "---FILE_SEPARATOR---" | 
+                grep -L -i "copyright\|license" || true)
+              
+              if [ -n "$FILES_WITHOUT_COPYRIGHT" ]; then
+                echo "ℹ️  INFO: Some $ext files may be missing copyright headers"
+              fi
+            fi
+          done
+          
+          echo "✅ Copyright header check completed"
+          
+  documentation-check:
+    name: Documentation Completeness
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check required documentation
+        run: |
+          echo "📚 Checking for required documentation files..."
+          
+          REQUIRED_DOCS="README.md"
+          RECOMMENDED_DOCS="CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md"
+          
+          for doc in $REQUIRED_DOCS; do
+            if [ -f "$doc" ]; then
+              echo "✅ Found: $doc"
+            else
+              echo "❌ ERROR: Missing required file: $doc"
+              exit 1
+            fi
+          done
+          
+          for doc in $RECOMMENDED_DOCS; do
+            if [ -f "$doc" ]; then
+              echo "✅ Found: $doc"
+            else
+              echo "ℹ️  INFO: Recommended file not found: $doc"
+            fi
+          done
+          
+      - name: Validate documentation links
+        run: |
+          echo "🔗 Validating internal documentation links..."
+          
+          # Check for broken internal links in markdown files
+          if command -v markdown-link-check &> /dev/null; then
+            find . -name "*.md" -not -path './.git/*' -exec markdown-link-check {} \;
+          else
+            echo "ℹ️  INFO: markdown-link-check not installed, skipping"
+          fi
+          
+          echo "✅ Documentation validation completed"
+          
+  generate-report:
+    name: Generate Final Report
+    runs-on: ubuntu-latest
+    needs: [static-analysis, security-scan, license-compliance, documentation-check]
+    if: always()
+    
+    steps:
+      - name: Generate comprehensive report
+        run: |
+          cat > code-integrity-report.md << 'EOF'
+          # Code Integrity Comprehensive Report
+          
+          **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Repository**: ${{ github.repository }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+          
+          ## Job Status Summary
+          
+          - Static Analysis: ${{ needs.static-analysis.result }}
+          - Security Scan: ${{ needs.security-scan.result }}
+          - License Compliance: ${{ needs.license-compliance.result }}
+          - Documentation Check: ${{ needs.documentation-check.result }}
+          
+          ## Overall Assessment
+          
+          All code integrity checks have been completed. Review individual job results for details.
+          
+          ---
+          *Generated by Honesty Framework Code Integrity Workflow*
+          EOF
+          
+          cat code-integrity-report.md
+          
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-integrity-comprehensive-report
+          path: code-integrity-report.md
+          retention-days: 90

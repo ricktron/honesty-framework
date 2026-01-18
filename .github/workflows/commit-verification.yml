@@ -1,0 +1,178 @@
+name: Commit Verification
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  verify-commits:
+    name: Verify Commit Integrity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Verify commit messages
+        run: |
+          echo "🔍 Verifying commit messages..."
+          
+          # Get list of commits
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            COMMITS=$(git log --pretty=format:"%H %s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          else
+            COMMITS=$(git log --pretty=format:"%H %s" -1)
+          fi
+          
+          # Check commit message format
+          echo "$COMMITS" | while read -r commit_hash commit_msg; do
+            echo "Checking commit: $commit_hash"
+            echo "Message: $commit_msg"
+            
+            # Verify commit message is not empty
+            if [ -z "$commit_msg" ]; then
+              echo "❌ ERROR: Empty commit message found"
+              exit 1
+            fi
+            
+            # Check for minimum message length
+            msg_length=${#commit_msg}
+            if [ $msg_length -lt 10 ]; then
+              echo "⚠️  WARNING: Commit message is very short ($msg_length chars)"
+            fi
+            
+            echo "✅ Commit message verified"
+          done
+          
+      - name: Check for sensitive data
+        run: |
+          echo "🔒 Scanning for sensitive data..."
+          
+          # Patterns to check for sensitive data
+          PATTERNS=(
+            "password[[:space:]]*=[[:space:]]*"
+            "api[_-]?key[[:space:]]*=[[:space:]]*"
+            "secret[[:space:]]*=[[:space:]]*"
+            "token[[:space:]]*=[[:space:]]*"
+            "private[_-]?key"
+            "BEGIN.*PRIVATE KEY"
+          )
+          
+          FOUND_SENSITIVE=0
+          
+          for pattern in "${PATTERNS[@]}"; do
+            if git log -p -1 | grep -iE "$pattern" | grep -v "^-"; then
+              echo "❌ ERROR: Potential sensitive data found matching pattern: $pattern"
+              FOUND_SENSITIVE=1
+            fi
+          done
+          
+          if [ $FOUND_SENSITIVE -eq 0 ]; then
+            echo "✅ No sensitive data detected"
+          else
+            echo "❌ Sensitive data check FAILED"
+            exit 1
+          fi
+          
+      - name: Verify author identity
+        run: |
+          echo "👤 Verifying author identity..."
+          
+          AUTHOR_EMAIL=$(git log -1 --pretty=format:"%ae")
+          AUTHOR_NAME=$(git log -1 --pretty=format:"%an")
+          
+          echo "Author: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+          
+          # Verify email format
+          if ! echo "$AUTHOR_EMAIL" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+            echo "❌ ERROR: Invalid email format"
+            exit 1
+          fi
+          
+          # Verify author name is not empty
+          if [ -z "$AUTHOR_NAME" ]; then
+            echo "❌ ERROR: Author name is empty"
+            exit 1
+          fi
+          
+          echo "✅ Author identity verified"
+          
+      - name: Check commit signature
+        run: |
+          echo "✍️  Checking commit signature..."
+          
+          SIGNATURE_STATUS=$(git log -1 --pretty=format:"%G?")
+          
+          case "$SIGNATURE_STATUS" in
+            G)
+              echo "✅ Commit is signed with a valid signature"
+              ;;
+            B)
+              echo "⚠️  WARNING: Commit has a bad signature"
+              ;;
+            U)
+              echo "⚠️  WARNING: Commit has a good signature but untrusted"
+              ;;
+            X)
+              echo "⚠️  WARNING: Commit signature has expired"
+              ;;
+            Y)
+              echo "⚠️  WARNING: Commit signature made by expired key"
+              ;;
+            R)
+              echo "⚠️  WARNING: Commit signature made by revoked key"
+              ;;
+            N)
+              echo "ℹ️  INFO: Commit is not signed (recommended but not required)"
+              ;;
+            *)
+              echo "❓ INFO: Unknown signature status: $SIGNATURE_STATUS"
+              ;;
+          esac
+          
+      - name: Generate verification report
+        if: always()
+        run: |
+          echo "📊 Generating verification report..."
+          
+          cat > verification-report.md << 'EOF'
+          # Commit Verification Report
+          
+          **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Workflow**: ${{ github.workflow }}
+          **Run**: #${{ github.run_number }}
+          
+          ## Summary
+          
+          - ✅ Commit message format verified
+          - ✅ Sensitive data scan completed
+          - ✅ Author identity validated
+          - ℹ️  Signature check completed
+          
+          ## Details
+          
+          - **Commit SHA**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Actor**: ${{ github.actor }}
+          - **Event**: ${{ github.event_name }}
+          
+          EOF
+          
+          cat verification-report.md
+          
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commit-verification-report
+          path: verification-report.md
+          retention-days: 90

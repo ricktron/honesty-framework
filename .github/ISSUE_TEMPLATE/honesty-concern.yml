@@ -1,0 +1,120 @@
+name: 🎯 Honesty Concern
+description: Report a potential honesty or ethical concern
+title: "[HONESTY]: "
+labels: ["honesty-concern", "needs-review"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for maintaining our commitment to honesty
+        
+        This template helps you report concerns about honesty, ethics, or transparency in our processes.
+        All reports are taken seriously and will be reviewed promptly.
+        
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe do you consider this concern?
+      options:
+        - Critical - Requires immediate attention
+        - High - Should be addressed soon
+        - Medium - Important but not urgent
+        - Low - Minor concern
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: category
+    attributes:
+      label: Concern Category
+      description: What type of honesty concern is this?
+      options:
+        - Code integrity
+        - Documentation accuracy
+        - Process transparency
+        - Attribution/Credit
+        - Data handling
+        - Communication
+        - Other
+    validations:
+      required: true
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of Concern
+      description: Please provide a detailed description of the honesty concern
+      placeholder: |
+        Describe the concern in detail:
+        - What did you observe?
+        - What are the honest/ethical issues?
+        - What should have happened instead?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence/Examples
+      description: Provide specific evidence, examples, or references
+      placeholder: |
+        Include:
+        - Links to relevant code, commits, or documentation
+        - Screenshots or logs
+        - Specific examples or quotes
+        - Timestamps or dates
+    validations:
+      required: false
+      
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this concern?
+      placeholder: |
+        Consider:
+        - Who is affected?
+        - What are the consequences?
+        - What trust issues might arise?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Suggested Resolution
+      description: How do you think this concern should be addressed?
+      placeholder: |
+        Provide suggestions for:
+        - Immediate actions needed
+        - Long-term improvements
+        - Preventive measures
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: confidentiality
+    attributes:
+      label: Confidentiality
+      description: Do you need this report to be handled confidentially?
+      options:
+        - label: This concern involves sensitive information
+        - label: I request confidential handling
+        - label: I am comfortable with public discussion
+        
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Reporting Checklist
+      options:
+        - label: I have reviewed existing issues to avoid duplicates
+          required: true
+        - label: I have provided specific examples or evidence
+          required: true
+        - label: I believe this concern is genuine and important
+          required: true
+        - label: I am willing to participate in the resolution process
+          required: false

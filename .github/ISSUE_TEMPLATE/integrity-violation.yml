@@ -1,0 +1,168 @@
+name: ⚠️ Integrity Violation
+description: Report a code or process integrity violation
+title: "[INTEGRITY]: "
+labels: ["integrity-violation", "security", "urgent"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚠️ Integrity Violation Report
+        
+        **This is for reporting serious integrity violations that may affect code quality,**
+        **security, or process integrity. These reports are treated with high priority.**
+        
+  - type: dropdown
+    id: violation_type
+    attributes:
+      label: Violation Type
+      description: What type of integrity violation have you identified?
+      options:
+        - Unauthorized code modification
+        - Compromised commit/signature
+        - Tampered documentation
+        - Bypassed verification process
+        - Malicious code detected
+        - Data integrity issue
+        - Process violation
+        - Other
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this violation?
+      options:
+        - Critical - Immediate security risk
+        - High - Significant integrity compromise
+        - Medium - Notable integrity issue
+        - Low - Minor integrity concern
+    validations:
+      required: true
+      
+  - type: textarea
+    id: violation_details
+    attributes:
+      label: Violation Details
+      description: Provide detailed information about the integrity violation
+      placeholder: |
+        Describe the violation:
+        - What was violated?
+        - How was it discovered?
+        - What is the scope of the violation?
+        - What are the security implications?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: affected_components
+    attributes:
+      label: Affected Components
+      description: Which parts of the system are affected?
+      placeholder: |
+        List all affected components:
+        - Files, directories, or modules
+        - Commits or branches
+        - Documentation or configurations
+        - Processes or workflows
+    validations:
+      required: true
+      
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Provide concrete evidence of the violation
+      placeholder: |
+        Include:
+        - Commit SHAs or references
+        - File paths and line numbers
+        - Log excerpts or error messages
+        - Verification output
+        - Screenshots or artifacts
+        
+        **Note:** Be careful not to include sensitive security information
+        that could be exploited if this issue is public.
+    validations:
+      required: true
+      
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Timeline
+      description: When did this violation occur or when was it introduced?
+      placeholder: |
+        Provide timeline information:
+        - When was it first introduced?
+        - When was it discovered?
+        - How long has it been present?
+    validations:
+      required: false
+      
+  - type: textarea
+    id: immediate_actions
+    attributes:
+      label: Immediate Actions Needed
+      description: What immediate actions should be taken?
+      placeholder: |
+        Suggest urgent actions:
+        - Should affected code be reverted?
+        - Should access be restricted?
+        - Should users be notified?
+        - Should additional investigation occur?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: Suspected Root Cause
+      description: What do you think caused this violation?
+      placeholder: |
+        Share your analysis:
+        - What allowed this to happen?
+        - Were processes bypassed?
+        - Were checks insufficient?
+        - Was this intentional or accidental?
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact Areas
+      description: Check all areas that may be impacted
+      options:
+        - label: Security
+        - label: Data integrity
+        - label: Code quality
+        - label: User trust
+        - label: Compliance/Legal
+        - label: System availability
+        
+  - type: checkboxes
+    id: confidentiality
+    attributes:
+      label: Confidentiality & Disclosure
+      options:
+        - label: This violation has security implications
+        - label: This should be handled privately initially
+        - label: Responsible disclosure practices should be followed
+        - label: Law enforcement may need to be notified
+        
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: I understand this is a serious report
+          required: true
+        - label: I have verified this is a genuine integrity issue
+          required: true
+        - label: I am available to provide additional information
+          required: true
+        - label: I have not shared details of this violation publicly
+          required: false
