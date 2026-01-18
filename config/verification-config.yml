@@ -1,0 +1,341 @@
+# Verification Configuration
+# Part of the Honesty Framework
+# This file configures verification workflows and processes
+
+version: "1.0.0"
+
+# Workflow execution settings
+workflow:
+  # Enable/disable specific workflows
+  enabled:
+    commit_verification: true
+    integrity_check: true
+    code_integrity: true
+    notification_system: true
+  
+  # Workflow triggers
+  triggers:
+    commit_verification:
+      - push
+      - pull_request
+    
+    integrity_check:
+      - push
+      - pull_request
+      - schedule  # Daily at 2 AM UTC
+      - workflow_dispatch
+    
+    code_integrity:
+      - push
+      - pull_request
+      - workflow_dispatch
+  
+  # Branch filters
+  branch_filters:
+    commit_verification:
+      include:
+        - main
+        - develop
+        - "release/**"
+    
+    code_integrity:
+      include:
+        - main
+        - develop
+
+# Commit verification configuration
+commit_verification:
+  # Checks to perform
+  checks:
+    message_format:
+      enabled: true
+      min_length: 10
+      conventional_format: false
+    
+    sensitive_data:
+      enabled: true
+      patterns_file: "config/integrity-rules.yml"
+    
+    author_identity:
+      enabled: true
+      validate_email: true
+      validate_name: true
+    
+    signature_check:
+      enabled: true
+      require_valid: false  # Warning only if invalid
+  
+  # Action on failure
+  on_failure:
+    block_merge: true
+    create_issue: true
+    notify: true
+
+# Integrity check configuration
+integrity_check:
+  # Checksum generation
+  checksums:
+    enabled: true
+    algorithm: "sha256"
+    store_baseline: true
+    compare_baseline: false  # Set to true to compare against baseline
+  
+  # File integrity checks
+  file_checks:
+    enabled: true
+    check_suspicious_extensions: true
+    check_large_files: true
+    max_file_size_mb: 10
+  
+  # Modification checks
+  modification_checks:
+    enabled: true
+    protected_paths:
+      - ".github/workflows/"
+      - "config/"
+    lookback_days: 7
+  
+  # Dependency checks
+  dependency_checks:
+    enabled: true
+    check_lock_files: true
+    check_pinned_versions: true
+  
+  # Code anomaly checks
+  anomaly_checks:
+    enabled: true
+    check_todos: true
+    check_debuggers: true
+    check_long_lines: true
+    max_line_length: 200
+  
+  # Action on failure
+  on_failure:
+    block_merge: true
+    create_issue: true
+    notify: true
+    severity: "high"
+
+# Code integrity configuration
+code_integrity:
+  # Static analysis
+  static_analysis:
+    enabled: true
+    tools:
+      shellcheck:
+        enabled: true
+        severity: "warning"
+      
+      eslint:
+        enabled: false  # Enable if using JavaScript
+        config: ".eslintrc.json"
+      
+      pylint:
+        enabled: false  # Enable if using Python
+        config: ".pylintrc"
+  
+  # Security scanning
+  security_scanning:
+    enabled: true
+    tools:
+      trivy:
+        enabled: true
+        severity: ["CRITICAL", "HIGH", "MEDIUM"]
+        scan_type: "fs"
+      
+      gitleaks:
+        enabled: true
+        fail_on_detection: true
+    
+    fail_on_vulnerabilities:
+      critical: true
+      high: true
+      medium: false
+      low: false
+  
+  # License compliance
+  license_compliance:
+    enabled: true
+    checks:
+      license_file: true
+      copyright_headers: false
+      dependency_licenses: false
+  
+  # Documentation checks
+  documentation_checks:
+    enabled: true
+    required_files:
+      - "README.md"
+    recommended_files:
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "SECURITY.md"
+    validate_links: false  # Requires markdown-link-check
+  
+  # Code formatting
+  formatting_checks:
+    enabled: true
+    check_trailing_whitespace: true
+    check_mixed_indentation: true
+  
+  # Action on failure
+  on_failure:
+    block_merge: true
+    create_issue: false
+    notify: true
+    severity: "medium"
+
+# Notification configuration
+notifications:
+  # Channels
+  channels:
+    github_issues:
+      enabled: true
+      create_for_severity: ["critical", "high"]
+      labels:
+        - "honesty-framework"
+        - "verification-failure"
+    
+    github_annotations:
+      enabled: true
+    
+    email:
+      enabled: false
+      recipients: []
+    
+    slack:
+      enabled: false
+      webhook_url_secret: "SLACK_WEBHOOK_URL"
+      channels:
+        critical: "#critical-alerts"
+        high: "#security"
+        medium: "#integrity"
+  
+  # Notification content
+  include_in_notification:
+    workflow_name: true
+    run_url: true
+    commit_details: true
+    actor: true
+    timestamp: true
+    failure_details: true
+    remediation_steps: true
+  
+  # Escalation
+  escalation:
+    enabled: true
+    rules:
+      critical:
+        escalate_after_minutes: 60
+        escalate_to: ["@security-team"]
+      
+      high:
+        escalate_after_hours: 24
+        escalate_to: ["@maintainers"]
+  
+  # Digest notifications
+  digests:
+    daily:
+      enabled: true
+      time: "08:00"
+      timezone: "UTC"
+      include_severity: ["medium", "low"]
+    
+    weekly:
+      enabled: true
+      day: "Monday"
+      time: "08:00"
+      timezone: "UTC"
+      include_severity: ["low"]
+
+# Reporting configuration
+reporting:
+  # Artifact storage
+  artifacts:
+    enabled: true
+    retention_days: 90
+    include:
+      - verification_reports
+      - integrity_reports
+      - scan_results
+      - logs
+  
+  # Report formats
+  formats:
+    markdown: true
+    json: false
+    html: false
+  
+  # Report content
+  include_in_reports:
+    summary: true
+    detailed_results: true
+    metrics: true
+    recommendations: true
+    historical_trends: false
+
+# Integration settings
+integrations:
+  # GitHub branch protection
+  branch_protection:
+    enabled: true
+    require_status_checks:
+      - "Commit Verification"
+      - "Integrity Check"
+      - "Code Integrity"
+    
+    require_review: true
+    required_approving_review_count: 1
+  
+  # Copilot
+  copilot:
+    enabled: false
+    auto_request_review: false
+
+# Performance settings
+performance:
+  # Timeouts
+  timeouts:
+    commit_verification_minutes: 10
+    integrity_check_minutes: 30
+    code_integrity_minutes: 20
+  
+  # Caching
+  caching:
+    enabled: true
+    cache_dependencies: true
+    cache_tools: true
+  
+  # Parallel execution
+  parallel:
+    enabled: true
+    max_parallel_jobs: 3
+
+# Development and testing
+development:
+  # Test mode
+  test_mode:
+    enabled: false
+    skip_failure_actions: true
+    verbose_logging: true
+  
+  # Debug settings
+  debug:
+    enabled: false
+    verbose_output: false
+    save_intermediate_results: false
+
+# Maintenance
+maintenance:
+  # Automatic updates
+  auto_update:
+    enabled: false
+    update_tools: false
+    update_dependencies: false
+  
+  # Cleanup
+  cleanup:
+    enabled: true
+    remove_old_artifacts: true
+    artifact_retention_days: 90
+    remove_old_issues: false

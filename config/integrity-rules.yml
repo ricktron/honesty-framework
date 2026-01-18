@@ -1,0 +1,289 @@
+# Integrity Rules Configuration
+# Part of the Honesty Framework
+# This file defines rules and thresholds for integrity checks
+
+version: "1.0.0"
+
+# File integrity rules
+file_integrity:
+  # Suspicious file extensions that should be flagged
+  suspicious_extensions:
+    - .exe
+    - .dll
+    - .so
+    - .dylib
+    - .bin
+    - .com
+    - .bat
+  
+  # Maximum file size (in MB) before warning
+  max_file_size_mb: 10
+  
+  # Patterns for files that should not be committed
+  forbidden_patterns:
+    - "**/node_modules/**"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/secrets/**"
+    - "**/credentials/**"
+    - "**/*.key"
+    - "**/*.pem"
+    - "**/*.p12"
+    - "**/*.pfx"
+  
+  # Allowed binary file patterns (exceptions)
+  allowed_binary_patterns:
+    - "**/images/**/*.png"
+    - "**/images/**/*.jpg"
+    - "**/images/**/*.gif"
+    - "**/fonts/**/*.woff"
+    - "**/fonts/**/*.woff2"
+    - "**/fonts/**/*.ttf"
+
+# Commit verification rules
+commit_verification:
+  # Minimum commit message length
+  min_message_length: 10
+  
+  # Require conventional commit format
+  enforce_conventional_commits: false
+  
+  # Allowed conventional commit types
+  conventional_commit_types:
+    - feat
+    - fix
+    - docs
+    - style
+    - refactor
+    - test
+    - chore
+    - perf
+    - ci
+    - build
+    - revert
+  
+  # Require commit signing
+  require_signed_commits: false
+  
+  # Require issue reference in commit message
+  require_issue_reference: false
+
+# Sensitive data detection patterns
+sensitive_data:
+  patterns:
+    - name: "Generic Password"
+      pattern: "password\\s*=\\s*[^\\s]+"
+      severity: "high"
+    
+    - name: "API Key"
+      pattern: "api[_-]?key\\s*=\\s*[^\\s]+"
+      severity: "critical"
+    
+    - name: "Secret Token"
+      pattern: "secret\\s*=\\s*[^\\s]+"
+      severity: "critical"
+    
+    - name: "Access Token"
+      pattern: "token\\s*=\\s*[^\\s]+"
+      severity: "high"
+    
+    - name: "Private Key"
+      pattern: "BEGIN.*PRIVATE KEY"
+      severity: "critical"
+    
+    - name: "AWS Access Key"
+      pattern: "AKIA[0-9A-Z]{16}"
+      severity: "critical"
+    
+    - name: "AWS Secret Key"
+      pattern: "aws_secret_access_key\\s*=\\s*[^\\s]+"
+      severity: "critical"
+    
+    - name: "GitHub Token"
+      pattern: "gh[pousr]_[0-9a-zA-Z]{36}"
+      severity: "critical"
+    
+    - name: "Database URL"
+      pattern: "(mysql|postgres|mongodb)://[^\\s@]+:[^\\s@]+@"
+      severity: "high"
+  
+  # File patterns to exclude from sensitive data scanning
+  exclude_patterns:
+    - "**/*.md"
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+    - "**/mock/**"
+    - "**/fixtures/**"
+
+# Code quality rules
+code_quality:
+  # Maximum cyclomatic complexity per function
+  max_complexity: 10
+  
+  # Maximum function length (lines)
+  max_function_length: 50
+  
+  # Maximum file length (lines)
+  max_file_length: 500
+  
+  # Minimum test coverage percentage
+  min_test_coverage: 80
+  
+  # Maximum line length
+  max_line_length: 120
+  
+  # Require documentation for public APIs
+  require_api_documentation: true
+
+# Security scanning rules
+security_scanning:
+  # Vulnerability severity levels to fail on
+  fail_on_severity:
+    - CRITICAL
+    - HIGH
+  
+  # Maximum age of dependencies (days) before warning
+  max_dependency_age_days: 365
+  
+  # Require dependency pinning
+  require_pinned_dependencies: true
+  
+  # Allowed vulnerability count by severity (before failing)
+  allowed_vulnerabilities:
+    critical: 0
+    high: 0
+    medium: 5
+    low: 10
+
+# Protected paths that require special review
+protected_paths:
+  paths:
+    - ".github/workflows/"
+    - "config/"
+    - ".gitignore"
+    - "LICENSE"
+    - "SECURITY.md"
+  
+  # Who can approve changes to protected paths
+  required_reviewers:
+    - "@security-team"
+    - "@maintainers"
+
+# Dependency integrity rules
+dependency_integrity:
+  # Required lock files by ecosystem
+  required_lock_files:
+    npm: "package-lock.json"
+    yarn: "yarn.lock"
+    pip: "requirements.txt"
+    pipenv: "Pipfile.lock"
+    go: "go.sum"
+    ruby: "Gemfile.lock"
+    rust: "Cargo.lock"
+  
+  # Warn if lock file is older than this (days)
+  lock_file_max_age_days: 30
+
+# Documentation requirements
+documentation:
+  # Required documentation files
+  required_files:
+    - "README.md"
+  
+  # Recommended documentation files
+  recommended_files:
+    - "CONTRIBUTING.md"
+    - "CODE_OF_CONDUCT.md"
+    - "SECURITY.md"
+    - "CHANGELOG.md"
+    - "LICENSE"
+  
+  # Minimum README length (characters)
+  min_readme_length: 500
+
+# License compliance rules
+license_compliance:
+  # Allowed licenses
+  allowed_licenses:
+    - "MIT"
+    - "Apache-2.0"
+    - "BSD-2-Clause"
+    - "BSD-3-Clause"
+    - "ISC"
+    - "GPL-3.0"
+    - "LGPL-3.0"
+  
+  # Require license file
+  require_license_file: true
+  
+  # Require license headers in source files
+  require_license_headers: false
+
+# Notification rules
+notifications:
+  # Severity-based notification timing
+  notification_timing:
+    critical:
+      delay_seconds: 0
+      create_issue: true
+      escalate_after_hours: 1
+    
+    high:
+      delay_seconds: 300  # 5 minutes
+      create_issue: true
+      escalate_after_hours: 24
+    
+    medium:
+      delay_seconds: 3600  # 1 hour
+      create_issue: false
+      escalate_after_hours: 72
+    
+    low:
+      delay_seconds: 86400  # 24 hours
+      create_issue: false
+      escalate_after_hours: 168  # 1 week
+  
+  # Digest schedules
+  digests:
+    daily:
+      enabled: true
+      time: "08:00"
+      timezone: "UTC"
+    
+    weekly:
+      enabled: true
+      day: "Monday"
+      time: "08:00"
+      timezone: "UTC"
+
+# Audit and compliance
+audit:
+  # How long to retain logs (days)
+  log_retention_days: 90
+  
+  # Critical incident log retention (days)
+  critical_log_retention_days: 365
+  
+  # Audit trail retention (days)
+  audit_trail_retention_days: 365
+  
+  # Frequency of scheduled audits
+  audit_frequency:
+    integrity: "daily"
+    security: "weekly"
+    compliance: "monthly"
+    comprehensive: "quarterly"
+
+# Performance and limits
+performance:
+  # Maximum time for integrity check (minutes)
+  max_check_duration_minutes: 30
+  
+  # Maximum time for commit verification (seconds)
+  max_commit_verification_seconds: 60
+  
+  # Parallel execution settings
+  parallel_checks: true
+  max_parallel_workers: 4
